@@ -2,11 +2,7 @@ package cn.zealon.readingcloud.account.service.impl;
 
 import cn.zealon.readingcloud.account.dao.UserLikeSeeMapper;
 import cn.zealon.readingcloud.account.service.UserLikeSeeService;
-import cn.zealon.readingcloud.account.service.task.LikeSeeClickTask;
 import cn.zealon.readingcloud.book.feign.client.BookClient;
-import cn.zealon.readingcloud.common.cache.RedisAccountKey;
-import cn.zealon.readingcloud.common.cache.RedisExpire;
-import cn.zealon.readingcloud.common.cache.RedisService;
 import cn.zealon.readingcloud.common.pojo.account.UserLikeSee;
 import cn.zealon.readingcloud.common.pojo.book.Book;
 import cn.zealon.readingcloud.common.result.Result;
@@ -38,9 +34,6 @@ public class UserLikeSeeServiceImpl implements UserLikeSeeService {
     private UserLikeSeeMapper likeSeeMapper;
 
     @Autowired
-    private RedisService redisService;
-
-    @Autowired
     private BookClient bookClient;
 
     @Autowired
@@ -58,10 +51,6 @@ public class UserLikeSeeServiceImpl implements UserLikeSeeService {
                 like.setBookId(bookId);
                 this.likeSeeMapper.insert(like);
             }
-
-            // 更新缓存
-            LikeSeeClickTask task = new LikeSeeClickTask(redisService, bookId, value);
-            this.commonQueueThreadPool.execute(task);
         } catch (Exception ex){
             LOGGER.error("用户喜欢点击操作异常：{}",ex);
             return ResultUtil.fail();
@@ -71,11 +60,7 @@ public class UserLikeSeeServiceImpl implements UserLikeSeeService {
 
     @Override
     public Result<Integer> getBookLikesCount(String bookId) {
-        Integer likeCount = this.redisService.getHashVal(RedisAccountKey.ACCOUNT_CENTER_BOOK_LIKES_COUNT, bookId, Integer.class);
-        if (likeCount == null) {
-            likeCount = this.likeSeeMapper.findPageWithCount(bookId);
-            this.redisService.setHashValExpire(RedisAccountKey.ACCOUNT_CENTER_BOOK_LIKES_COUNT, bookId, likeCount, RedisExpire.HOUR);
-        }
+        Integer likeCount = this.likeSeeMapper.findPageWithCount(bookId);
         return ResultUtil.success(likeCount);
     }
 

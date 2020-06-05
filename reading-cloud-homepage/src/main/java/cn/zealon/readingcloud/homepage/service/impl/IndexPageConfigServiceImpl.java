@@ -1,8 +1,5 @@
 package cn.zealon.readingcloud.homepage.service.impl;
 
-import cn.zealon.readingcloud.common.cache.RedisExpire;
-import cn.zealon.readingcloud.common.cache.RedisHomepageKey;
-import cn.zealon.readingcloud.common.cache.RedisService;
 import cn.zealon.readingcloud.common.pojo.index.IndexPageConfig;
 import cn.zealon.readingcloud.common.result.Result;
 import cn.zealon.readingcloud.common.result.ResultUtil;
@@ -18,11 +15,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * 精品页服务
+ *
  * @author: zealon
  * @since: 2020/4/6
  */
@@ -40,17 +39,11 @@ public class IndexPageConfigServiceImpl implements IndexPageConfigService {
     @Autowired
     private IndexBooklistService indexBooklistService;
 
-    @Autowired
-    private RedisService redisService;
-
     @Override
     public Result getIndexPageByType(Integer type, Integer page, Integer limit) {
-        String key = RedisHomepageKey.getHomepageKey(type);
-        // 精品页VO列表
-        List<IndexPageVO> pageVOS = this.redisService.getHashListVal(key, page.toString(), IndexPageVO.class);
-        if (pageVOS != null) {
-            return ResultUtil.success(pageVOS);
-        }
+        type = type == null ? 1 : type;
+        page = page == null ? 1 : page;
+        limit = limit == null ? 1 : limit;
 
         // 获得精品页配置
         List<IndexPageConfig> pageConfigs = this.getIndexPageWithPaging(type, page, limit);
@@ -59,7 +52,8 @@ public class IndexPageConfigServiceImpl implements IndexPageConfigService {
             return ResultUtil.success(new ArrayList<>()).buildMessage("当前请求页没有配置项！");
         }
 
-        pageVOS = new ArrayList<>(pageConfigs.size());
+        // 精品页VO列表
+        List<IndexPageVO> pageVOS = new ArrayList<>(pageConfigs.size());
         for (int i = 0; i < pageConfigs.size(); i++) {
             IndexPageConfig pageConfig = pageConfigs.get(i);
             IndexPageVO vo = new IndexPageVO();
@@ -67,7 +61,7 @@ public class IndexPageConfigServiceImpl implements IndexPageConfigService {
 
             // 模块是否有效
             boolean okFlag = true;
-            switch (pageConfig.getItemType()){
+            switch (pageConfig.getItemType()) {
                 case 1:
                     // 书单
                     vo.setBooklist(this.indexBooklistService.getIndexBooklistVO(pageConfig.getItemId(), null));
@@ -92,21 +86,18 @@ public class IndexPageConfigServiceImpl implements IndexPageConfigService {
             }
         }
 
-        if (pageVOS.size() > 0) {
-            // 缓存精品页
-            this.redisService.setHashValExpire(key, page.toString(), pageVOS, RedisExpire.DAY);
-        }
         return ResultUtil.success(pageVOS);
     }
 
     /**
      * 分页获取精品页配置列表
+     *
      * @param type
      * @param page
      * @param limit
      * @return
      */
-    private List<IndexPageConfig> getIndexPageWithPaging(Integer type, Integer page, Integer limit){
+    private List<IndexPageConfig> getIndexPageWithPaging(Integer type, Integer page, Integer limit) {
         if (page <= 0) {
             page = 1;
         }

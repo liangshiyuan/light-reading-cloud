@@ -1,9 +1,6 @@
 package cn.zealon.readingcloud.homepage.service.impl;
 
 import cn.zealon.readingcloud.account.feign.client.LikeSeeClient;
-import cn.zealon.readingcloud.common.cache.RedisExpire;
-import cn.zealon.readingcloud.common.cache.RedisHomepageKey;
-import cn.zealon.readingcloud.common.cache.RedisService;
 import cn.zealon.readingcloud.common.constant.CategoryConstant;
 import cn.zealon.readingcloud.common.enums.BookSerialStatusEnum;
 import cn.zealon.readingcloud.common.pojo.book.Book;
@@ -25,10 +22,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 import java.util.*;
 
 /**
  * 书单图书服务
+ *
  * @author: zealon
  * @since: 2020/4/7
  */
@@ -44,9 +43,6 @@ public class IndexBooklistItemServiceImpl implements IndexBooklistItemService {
     private BookCenterService bookCenterService;
 
     @Autowired
-    private RedisService redisService;
-
-    @Autowired
     private IndexBooklistItemMapper indexBooklistItemMapper;
 
     @Autowired
@@ -54,31 +50,22 @@ public class IndexBooklistItemServiceImpl implements IndexBooklistItemService {
 
     /**
      * 分页 - 书单更多接口
-     * @param booklistId            书单ID
-     * @param page                  页数
-     * @param limit                 每页数量
+     *
+     * @param booklistId 书单ID
+     * @param page       页数
+     * @param limit      每页数量
      * @return
      */
     @Override
     public Result getBooklistPagingBooks(Integer booklistId, Integer page, Integer limit) {
-        String key = RedisHomepageKey.getBooklistItemPagingKey(booklistId);
-        // 使用页码+数量作为Hash的key，防止不同数量的分页页码冲突
-        String field = page.toString() + limit;
-        List<BooklistBookVO> list = this.redisService.getHashListVal(key, field, BooklistBookVO.class);
-        if (CommonUtil.isEmpty(list)) {
-            list = new ArrayList<>();
-            PageHelper.startPage(page, limit);
-            Page<IndexBooklistItem> pageList = (Page<IndexBooklistItem>) this.indexBooklistItemMapper.findPageWithResult(booklistId);
-            for (int i = 0; i < pageList.size(); i++) {
-                String bookId = pageList.get(i).getBookId();
-                BooklistBookVO vo = this.getBookVO(bookId);
-                if (vo != null) {
-                    list.add(vo);
-                }
-            }
-
-            if (list.size() > 0) {
-                this.redisService.setHashValExpire(key, field, list, RedisExpire.HOUR_TWO);
+        List<BooklistBookVO> list = new ArrayList<>();
+        PageHelper.startPage(page, limit);
+        Page<IndexBooklistItem> pageList = (Page<IndexBooklistItem>) this.indexBooklistItemMapper.findPageWithResult(booklistId);
+        for (int i = 0; i < pageList.size(); i++) {
+            String bookId = pageList.get(i).getBookId();
+            BooklistBookVO vo = this.getBookVO(bookId);
+            if (vo != null) {
+                list.add(vo);
             }
         }
         return ResultUtil.success(list);
@@ -86,8 +73,9 @@ public class IndexBooklistItemServiceImpl implements IndexBooklistItemService {
 
     /**
      * 书单换一换接口
-     * @param booklistId            书单ID
-     * @param clientRandomNumber    客户端当前随机编号
+     *
+     * @param booklistId         书单ID
+     * @param clientRandomNumber 客户端当前随机编号
      * @return
      */
     @Override
@@ -105,15 +93,16 @@ public class IndexBooklistItemServiceImpl implements IndexBooklistItemService {
     /**
      * 随机获取书单book
      * <p>
-     *     1.得到客户端随机编码的book
-     *     2.随机获取榜单图书，排除客户端当前的book
-     *     3.随机图书列表包括不能重复图书
+     * 1.得到客户端随机编码的book
+     * 2.随机获取榜单图书，排除客户端当前的book
+     * 3.随机图书列表包括不能重复图书
      * </p>
-     * @param booklistId            书单ID
-     * @param bookIds               图书IDs
-     * @param showNumber            显示数量
-     * @param clientRandomNumber    客户端当前随机编号
-     * @param showLikeCount         是否显示喜欢数
+     *
+     * @param booklistId         书单ID
+     * @param bookIds            图书IDs
+     * @param showNumber         显示数量
+     * @param clientRandomNumber 客户端当前随机编号
+     * @param showLikeCount      是否显示喜欢数
      * @return
      */
     @Override
@@ -151,12 +140,13 @@ public class IndexBooklistItemServiceImpl implements IndexBooklistItemService {
 
     /**
      * 获取书单VO
+     *
      * @param bookIdArray
      * @param showNumber
      * @param showLikeCount
      * @return
      */
-    private List<BooklistBookVO> getBooklistBookVOByBookIdArray(String[] bookIdArray, Integer showNumber, Boolean showLikeCount){
+    private List<BooklistBookVO> getBooklistBookVOByBookIdArray(String[] bookIdArray, Integer showNumber, Boolean showLikeCount) {
         List<BooklistBookVO> vos = new ArrayList<>();
         for (int i = 0; i < bookIdArray.length; i++) {
             String bookId = bookIdArray[i];
@@ -180,10 +170,11 @@ public class IndexBooklistItemServiceImpl implements IndexBooklistItemService {
 
     /**
      * 获取榜单图书VO
+     *
      * @param bookId
      * @return
      */
-    private BooklistBookVO getBookVO(String bookId){
+    private BooklistBookVO getBookVO(String bookId) {
         Book book = this.bookCenterService.getBookById(bookId);
         if (book == null) {
             LOGGER.warn("图书资源中心获取Book:{}失败！返回了空数据", bookId);
@@ -203,24 +194,20 @@ public class IndexBooklistItemServiceImpl implements IndexBooklistItemService {
 
     /**
      * 获取客户端书单Id集合
+     *
      * @param booklistId
      * @return
      */
-    private Set<String> getClientBookIds(Integer booklistId, Integer clientRandomNumber){
+    private Set<String> getClientBookIds(Integer booklistId, Integer clientRandomNumber) {
         if (clientRandomNumber == null) {
             return new HashSet<>();
         }
 
         // 客户端当前显示的书单
-        String key = RedisHomepageKey.getBooklistRandomVoKey(booklistId);
-        IndexBooklistVO booklistVO;
         List<BooklistBookVO> clientBooks = null;
         try {
-            booklistVO = this.redisService.getHashVal(key, clientRandomNumber.toString(), IndexBooklistVO.class);
-            if (booklistVO != null) {
-                clientBooks = booklistVO.getBooks();
-            }
-        } catch (Exception ex){
+            clientBooks = new IndexBooklistVO().getBooks();
+        } catch (Exception ex) {
             LOGGER.error("Redis获取客户端书单失败了！booklistId:{},clientRandomNumber:{}", ex, booklistId, clientRandomNumber);
         }
         if (clientBooks == null) {

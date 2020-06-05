@@ -54,6 +54,10 @@ public class SearchServiceImpl implements SearchService {
 
     @Override
     public Result getSearchResultBooks(String keyword, Integer page, Integer limit){
+
+        // 保存搜索词
+        hotSearchWordMapper.saveHotSearchWord(keyword);
+
         // 查询条件
         Map query = new HashMap();
         // 多字段匹配

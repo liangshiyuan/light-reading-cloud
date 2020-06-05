@@ -1,8 +1,5 @@
 package cn.zealon.readingcloud.homepage.service.impl;
 
-import cn.zealon.readingcloud.common.cache.RedisExpire;
-import cn.zealon.readingcloud.common.cache.RedisHomepageKey;
-import cn.zealon.readingcloud.common.cache.RedisService;
 import cn.zealon.readingcloud.common.pojo.index.IndexBanner;
 import cn.zealon.readingcloud.common.pojo.index.IndexBannerItem;
 import cn.zealon.readingcloud.common.utils.CommonUtil;
@@ -31,17 +28,8 @@ public class IndexBannerServiceImpl implements IndexBannerService {
     @Autowired
     private IndexBannerItemMapper indexBannerItemMapper;
 
-    @Autowired
-    private RedisService redisService;
-
     @Override
     public IndexBannerVO getBannerVO(Integer bannerId) {
-        String key = RedisHomepageKey.getBannerVoKey(bannerId);
-        IndexBannerVO vo = this.redisService.getCache(key, IndexBannerVO.class);
-        if (vo != null) {
-            return vo;
-        }
-
         // DB查询不存在返回空
         IndexBanner indexBanner = this.indexBannerMapper.selectById(bannerId);
         if (indexBanner == null) {
@@ -61,8 +49,7 @@ public class IndexBannerServiceImpl implements IndexBannerService {
             BeanUtils.copyProperties(banner, item);
             items.add(item);
         }
-        vo = new IndexBannerVO(indexBanner.getId(), indexBanner.getName(), items);
-        this.redisService.setExpireCache(key, vo, RedisExpire.HOUR_FOUR);
+        IndexBannerVO vo = new IndexBannerVO(indexBanner.getId(), indexBanner.getName(), items);
         return vo;
     }
 }
